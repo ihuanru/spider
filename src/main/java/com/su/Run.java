@@ -6,7 +6,9 @@ import com.su.processor.BiqugeProcessor;
 import com.su.repository.CategoryRepository;
 import com.su.utils.ContextUtil;
 import us.codecraft.webmagic.Spider;
+import us.codecraft.webmagic.scheduler.FileCacheQueueScheduler;
 
+import java.io.File;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -26,8 +28,9 @@ public class Run {
 //                .addUrl("http://www.biquge5200.com/13_13599/5995571.html")
                 .addUrl("http://www.biquge5200.com/xiaoshuodaquan/")
                     //开启5个线程抓取
-                    .thread(5)
+//                    .thread(5)
                     .addPipeline(ContextUtil.getBean(BiqugePipeline.class))
+                    .setScheduler(new FileCacheQueueScheduler(new File("").getAbsolutePath()))
                     //启动爬虫
                     .run();
 //        }, 0, 1, TimeUnit.DAYS);
