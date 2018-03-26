@@ -7,6 +7,7 @@ import com.su.repository.CategoryRepository;
 import com.su.utils.MD5Util;
 import com.su.utils.PinyinUtil;
 import lombok.extern.log4j.Log4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import us.codecraft.webmagic.Page;
@@ -19,11 +20,11 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static org.apache.commons.collections.CollectionUtils.isEmpty;
 
 /**
+ * 笔趣阁的爬虫，还未解决章节排序问题
  * @author suyupeng
  */
 @Log4j
@@ -49,13 +50,12 @@ public class BiqugeProcessor implements PageProcessor {
                 page.addTargetRequests(linksAll);
             }
         }else if (judge.contains(LIST)) {
-            List<String> linksList = getLinksList(page);
-            if (!isEmpty(linksList)) {
-                page.addTargetRequests(linksList);
+            String linksList = getLinksList(page);
+            if (!StringUtils.isEmpty(linksList)) {
+                page.addTargetRequest(linksList);
             }
             String categoryName = html.xpath("//div[@class='con_top']/a[2]/text()").toString();
             String website = html.xpath("//div[@class='con_top']/a[1]/text()").toString();
-            String categoryId = MD5Util.getMD5(website + categoryName);
             Novel novel = new Novel();
             novel.setImageUrl(html.xpath("//div[@id='fmimg']/img/@src").toString());
             Selectable info = html.xpath("//div[@id='info']");
@@ -70,7 +70,6 @@ public class BiqugeProcessor implements PageProcessor {
                 e.printStackTrace();
             }
             novel.setAuthor(s.substring(s.lastIndexOf("：", s.length() - 1)).replace("：",""));
-//            novel.setCategoryId(website + categoryName);
             if (!categoryRepository.exists(website + categoryName)) {
                 categoryRepository.save(new Category("笔趣阁" + categoryName, "笔趣阁", categoryName, "http://www.biquge5200.com/" + PinyinUtil.toPinyin(categoryName) + "/"));
             }
@@ -78,32 +77,29 @@ public class BiqugeProcessor implements PageProcessor {
             novel.setIntroduction(html.xpath("//div[@id='intro']/p/text()").toString());
             novel.setUrl(page.getUrl().toString());
             novel.setId(MD5Util.getMD5(novel.getUrl()));
-//            log.info(novel.toString());
             page.putField("novel", novel);
         } else if (judge.contains(NOVEL)) {
-            String name = html.xpath("//div[@class='con_top']/a[3]/text()").toString();
+            String name = html.xpath("//div[@class='con_top']/text()").toString().replace(">  >  > ", "").trim();
             Chapter chapter = new Chapter();
             chapter.setUrl(page.getUrl().toString());
             String url = chapter.getUrl();
             url = url.replaceAll("(.*/).*", "$1");
-//            chapter.setNovelId(MD5Util.getMD5(url));
             chapter.setNovel(new Novel(MD5Util.getMD5(url)));
             chapter.setName(name);
             chapter.setContent(html.xpath("//div[@id='content']/text()").toString());
             chapter.setId(MD5Util.getMD5(chapter.getUrl()));
             page.putField("chapter", chapter);
-//            log.info(chapter.toString());
         }
     }
 
     /**
      * 在小说的章节列表中获取所有的 章节url
      */
-    private List<String> getLinksList(Page page) {
+    private String getLinksList(Page page) {
         Html html = page.getHtml();
         Selectable xpath = html.xpath("//div[@id='list']");
         log.info("list-size:" + xpath.links().all().size());
-        return xpath.links().all().stream().distinct().collect(Collectors.toList());
+        return xpath.links().all().get(xpath.links().all().size() - 1);
     }
 
     /**
